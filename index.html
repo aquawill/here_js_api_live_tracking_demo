@@ -8,8 +8,6 @@
     <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-service.js"></script>
     <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-ui.js"></script>
     <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-mapevents.js"></script>
-    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-clustering.js"></script>
-    <script type="text/javascript" src="https://js.api.here.com/v3/3.0/mapsjs-data.js"></script>
     <style>
         html,
         body {
@@ -22,6 +20,30 @@
         #map {
             height: 100%;
             width: 100vw;
+        }
+        
+        a:link {
+            color: yellow;
+            background-color: transparent;
+            text-decoration: none;
+        }
+        
+        a:visited {
+            color: pink;
+            background-color: transparent;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            color: red;
+            background-color: transparent;
+            text-decoration: underline;
+        }
+        
+        a:active {
+            color: lightseagreen;
+            background-color: transparent;
+            text-decoration: underline;
         }
     </style>
 </head>
@@ -62,6 +84,8 @@
             var ui = H.ui.UI.createDefault(map, defaultLayers);
             var flightMarkerGroup = new H.map.Group();
             map.addObject(flightMarkerGroup);
+            var selectedTrackGroup = new H.map.Group();
+            map.addObject(selectedTrackGroup);
             ui.removeControl('mapsettings');
             document.getElementById('searchbar').addEventListener('keypress', onSearch)
 
@@ -162,42 +186,122 @@
                 var view_port = map.getViewPort();
                 view_port.resize();
             }
+            var selected_icao64;
+            var selected_flight_data;
 
-            function check_flight(evt) {
+            function select_flight(evt) {
+                map.removeEventListener('mapviewchangeend', get_flight);
+                behavior.disable();
+                ui.getControl('zoom').setVisibility(false);
+                line = new H.geo.LineString();
+                var icao64 = evt.target.getData().icao64;
+                var data = evt.target.getData();
+                selected_icao64 = icao64;
+                selected_flight_data = data;
+                check_flight(data);
+                track_flight(data);
+            }
+            var line = new H.geo.LineString();
+
+            function track_flight(data) {
+                selectedTrackGroup.removeAll();
+                var trackUrl = 'https://opensky-network.org/api/tracks/all?icao24=' + data.icao64 + '&time=0';
+                getURL(trackUrl).then(function onFulfilled(obj) {
+                    var r = JSON.parse(obj);
+                    for (k = 0; k < r['path'].length; k++) {
+                        var lat = r['path'][k][1]
+                            , lng = r['path'][k][2]
+                        line.pushPoint({
+                            lat: lat
+                            , lng: lng
+                        });
+                    }
+                    var latest_lat = r['path'][r['path'].length - 1]['1'];
+                    var latest_lng = r['path'][r['path'].length - 1]['2'];
+                    var callsign = r['callsign'];
+                    var latest_alt = r['path'][r['path'].length - 1]['3'];
+                    var html = '<span style="font-size: 11px; "><table <table style="border:3px #cccccc solid;" cellpadding="4" border="1"><tbody><tr><td>Callsign</td><td><a href="https://opensky-network.org/aircraft-profile?icao24=' + data.icao64 + '" target="_blank">' + callsign + '</a></td></tr><tr><td>Latitude</td><td>' + latest_lat + '</td></tr><tr><td>Longitude</td><td>' + latest_lng + '</td></tr><tr><td>Altitude</td><td>' + latest_alt + 'm</td></tr></tbody></table></span>';
+                    map.setCenter({
+                        lat: latest_lat
+                        , lng: latest_lng
+                    });
+                    var flightTrack = new H.map.Polyline(line, {
+                        style: {
+                            strokeColor: 'lightgreen'
+                            , lineWidth: 6
+                        }
+                        , arrows: {
+                            fillColor: 'black'
+                            , frequency: 2
+                            , width: 3
+                            , length: 3
+                        }
+                    });
+                    flightTrack.addEventListener('tap', function () {
+                        selectedTrackGroup.removeAll();
+                        line = new H.geo.LineString();
+                        selected_icao64 = null;
+                        selected_flight_data = null;
+                        map.addEventListener('mapviewchangeend', get_flight);
+                        behavior.enable();
+                        ui.getControl('zoom').setVisibility(true);
+                    });
+                    selectedTrackGroup.addObject(flightTrack);
+                    if (ui.getBubbles().length > 0) {
+                        var opening_bubble = ui.getBubbles()[0];
+                        opening_bubble.setContent(html);
+                        opening_bubble.setPosition({
+                            lat: latest_lat
+                            , lng: latest_lng
+                        });
+                    }
+                })
+            }
+
+            function check_flight(data) {
                 purge_bubble();
                 var bubble = new H.ui.InfoBubble({
-                    lat: evt.target.getData().lat
-                    , lng: evt.target.getData().lng
+                    lat: data.lat
+                    , lng: data.lng
                 }, {
-                    content: evt.target.getData().html
+                    content: data.html
                 });
                 ui.addBubble(bubble);
             }
 
+            function halfSize(size) {
+                return size / 2
+            }
+            var size = 64;
+
             function getIcon(rotation) {
-                var plane_svg = '<svg  width="48" height="48"  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image width="48" height="48"  overflow="visible" transform="rotate(' + (rotation - 45).toString() + ',24,24)" xlink:href="data:image/png;base64,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"></image></svg>';
+                var plane_svg = '<svg  width="' + size + '" height="' + size + '"  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image width="48" height="48"  overflow="visible" transform="rotate(' + (rotation - 45).toString() + ',' + halfSize(size) + ',' + halfSize(size) + ')" xlink:href="data:image/png;base64,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"></image></svg>';
                 var icon = new H.map.Icon(plane_svg, {
                     anchor: {
-                        x: 24
-                        , y: 24
+                        x: halfSize(size)
+                        , y: halfSize(size)
                     }
                 });
                 return icon
             }
 
             function get_flight() {
+                //console.log(selected_flight_data);
                 if (map.getZoom() < 7) {
                     map.setZoom(7);
                 }
+                if (line.getPointCount() > 0) {
+                    line = new H.geo.LineString();
+                    track_flight(selected_flight_data);
+                }
                 var dataUrl = 'https://badass:lpRMGpRf18Rp@opensky-network.org/api/states/all?lamin=' + map.getViewBounds().getBottom() + '&lomin=' + map.getViewBounds().getLeft() + '&lamax=' + map.getViewBounds().getTop() + '&lomax=' + map.getViewBounds().getRight()
-                console.log(dataUrl);
                 getURL(dataUrl).then(function onFulfilled(obj) {
                     flightMarkerGroup.removeAll();
-                    r = JSON.parse(obj);
+                    var r = JSON.parse(obj);
                     var time = r['time']
                         , states = r['states'];
-                    console.log(time, states)
                     for (j = 0; j < states.length; j++) {
+                        var icao64 = states[j][0];
                         var callsign = states[j][1];
                         var origin_country = states[j][2];
                         var time_position = states[j][3];
@@ -207,7 +311,6 @@
                         var geo_altitude = states[j][7];
                         var on_ground = states[j][8];
                         var true_track = states[j][10];
-                        var html = '<span style="font-size: 8px; "><table <table style="border:3px #cccccc solid;" cellpadding="10" border="1"><tbody><tr><td>Callsign</td><td><mark>' + callsign + '</mark></td></tr><tr><td>Origin Country</td><td>' + origin_country + '</td></tr><tr><td>Latitude</td><td>' + latitude + '</td></tr><tr><td>Longitude</td><td>' + latitude + '</td></tr><tr><td>Altitude</td><td>' + geo_altitude + 'm</td></tr></tbody></table></span>'
                         var flight_marker = new H.map.Marker({
                             lat: latitude
                             , lng: longitude
@@ -215,17 +318,17 @@
                             icon: getIcon(true_track)
                         });
                         flight_marker.setData({
-                            lat: latitude
+                            icao64: icao64
+                            , lat: latitude
                             , lng: longitude
-                            , html: html
                         });
-                        flight_marker.addEventListener('tap', check_flight);
+                        flight_marker.addEventListener('tap', select_flight);
                         flightMarkerGroup.addObject(flight_marker);
                     }
                 });
             }
-            map.addEventListener('mapviewchangeend', get_flight)
-            setInterval(get_flight, 30000);
+            map.addEventListener('mapviewchangeend', get_flight);
+            setInterval(get_flight, 15000);
         </script>
     </div>
 </body>
