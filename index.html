@@ -332,8 +332,11 @@
                     }
                 });
             }
+            var cloud_is_on = false;
+            var weather_overlay;
 
             function cloud_overlay_on() {
+                cloud_is_on = true;
                 var epoch = Math.round(new Date().getTime() / 1000.0);
                 var weather_tile_provider = new H.map.provider.ImageTileProvider({
                     getURL: function (column, row, zoom) {
@@ -341,7 +344,7 @@
                     }
                     , tileSize: 256
                 });
-                var weather_overlay = new H.map.layer.TileLayer(weather_tile_provider, {
+                weather_overlay = new H.map.layer.TileLayer(weather_tile_provider, {
                     opacity: 0.5
                 });
                 map.addLayer(weather_overlay);
@@ -349,6 +352,7 @@
             }
 
             function cloud_overlay_off() {
+                cloud_is_on = false;
                 map.removeLayer(weather_overlay);
                 document.getElementById('weather_overlay_bt').innerHTML = '<button type="button" onclick="cloud_overlay_on()" > Cloud On </button>';
             }
@@ -359,7 +363,10 @@
             }
             map.addEventListener('mapviewchangeend', get_flight);
             setInterval(get_flight, 15000);
-            setInterval(refresh_cloud_overlay, 1800000);
+            setInterval(refresh_cloud_overlay, 900000);
+            if (cloud_is_on) {
+                console.log(map.getLayers().asArray());
+            }
         </script>
     </div>
 </body>
