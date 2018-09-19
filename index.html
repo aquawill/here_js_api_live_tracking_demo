@@ -51,12 +51,13 @@
 <body onresize="resize()">
     <div id="searchbar" style=" position: absolute; top: 20px; z-index: 1000; left: 20px; ">
         <input id="geocoder_box" type="text" style="font-size: 16px;" placeholder="Search city" maxlength="50" size="40"> </div>
-    <div id="text_box" style=" position: absolute; top: 60px; z-index: 1000; left: 20px; "> </div>
     <div style=" position: absolute; top: 95%; z-index: 1000; right: 10px; font-size: 8px; ">Icons made by <a href="https://www.flaticon.com/authors/pixel-buddha" title="Pixel Buddha">Pixel Buddha</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
-    <div id="bt" style=" position: absolute; top: 20px; z-index: 1000; right: 20px; "> </div>
+    <div id="tracking_bt" style=" position: absolute; top: 20px; z-index: 1000; right: 20px; "> </div>
+    <div id="weather_overlay_bt" style=" position: absolute; top: 60px; z-index: 1000; left: 20px; ">
+        <button type="button" onclick="cloud_overlay_on()">Cloud On</button>
+    </div>
     <div id="map">
         <script type="text/javascript" charset="UTF-8">
-            document.getElementById('text_box').innerHTML = '';
             var he_appid = 'NXqTq9BXXeEiR4yuXfjj';
             var he_appcode = '3NpseRCnS25FaujWRdthVQ';
             var platform = new H.service.Platform({
@@ -191,7 +192,7 @@
             var selected_flight_data;
 
             function select_flight(evt) {
-                document.getElementById('bt').innerHTML = '<button type="button" onclick="quit_tracking()">Quit Tracking</button>';
+                document.getElementById('tracking_bt').innerHTML = '<button type="button" onclick="quit_tracking()">Quit Tracking</button>';
                 map.removeEventListener('mapviewchangeend', get_flight);
                 behavior.disable();
                 ui.getControl('zoom').setVisibility(false);
@@ -206,7 +207,7 @@
             var line = new H.geo.LineString();
 
             function quit_tracking() {
-                document.getElementById('bt').innerHTML = '';
+                document.getElementById('tracking_bt').innerHTML = '';
                 selectedTrackGroup.removeAll();
                 line = new H.geo.LineString();
                 selected_icao64 = null;
@@ -291,8 +292,8 @@
 
             function get_flight() {
                 //console.log(selected_flight_data);
-                if (map.getZoom() < 7) {
-                    map.setZoom(7);
+                if (map.getZoom() < 6) {
+                    map.setZoom(6);
                 }
                 if (line.getPointCount() > 0) {
                     line = new H.geo.LineString();
@@ -331,6 +332,25 @@
                     }
                 });
             }
+            var weather_tile_provider = new H.map.provider.ImageTileProvider({
+                getURL: function (column, row, zoom) {
+                    return 'https://tile.openweathermap.org/map/clouds_new/' + zoom + '/' + column + '/' + row + '?appid=9de243494c0b295cca9337e1e96b00e2'
+                }
+            });
+
+            function cloud_overlay_on() {
+                map.addLayer(weather_overlay);
+                document.getElementById('weather_overlay_bt').innerHTML = '<button type="button" onclick="cloud_overlay_off()"> Cloud Off </button>';
+            }
+
+            function cloud_overlay_off() {
+                map.removeLayer(weather_overlay);
+                document.getElementById('weather_overlay_bt').innerHTML = '<button type="button" onclick="cloud_overlay_on()" > Cloud On </button>';
+            }
+            weather_tile_provider.tileSize = 256;
+            var weather_overlay = new H.map.layer.TileLayer(weather_tile_provider, {
+                opacity: 0.5
+            });
             map.addEventListener('mapviewchangeend', get_flight);
             setInterval(get_flight, 15000);
         </script>
