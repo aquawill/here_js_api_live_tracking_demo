@@ -332,13 +332,18 @@
                     }
                 });
             }
-            var weather_tile_provider = new H.map.provider.ImageTileProvider({
-                getURL: function (column, row, zoom) {
-                    return 'https://tile.openweathermap.org/map/clouds_new/' + zoom + '/' + column + '/' + row + '?appid=9de243494c0b295cca9337e1e96b00e2'
-                }
-            });
 
             function cloud_overlay_on() {
+                var epoch = Math.round(new Date().getTime() / 1000.0);
+                var weather_tile_provider = new H.map.provider.ImageTileProvider({
+                    getURL: function (column, row, zoom) {
+                        return 'https://tile.openweathermap.org/map/clouds_new/' + zoom + '/' + column + '/' + row + '?appid=9de243494c0b295cca9337e1e96b00e2&token=' + epoch
+                    }
+                    , tileSize: 256
+                });
+                var weather_overlay = new H.map.layer.TileLayer(weather_tile_provider, {
+                    opacity: 0.5
+                });
                 map.addLayer(weather_overlay);
                 document.getElementById('weather_overlay_bt').innerHTML = '<button type="button" onclick="cloud_overlay_off()"> Cloud Off </button>';
             }
@@ -347,12 +352,14 @@
                 map.removeLayer(weather_overlay);
                 document.getElementById('weather_overlay_bt').innerHTML = '<button type="button" onclick="cloud_overlay_on()" > Cloud On </button>';
             }
-            weather_tile_provider.tileSize = 256;
-            var weather_overlay = new H.map.layer.TileLayer(weather_tile_provider, {
-                opacity: 0.5
-            });
+
+            function refresh_cloud_overlay() {
+                cloud_overlay_off();
+                cloud_overlay_on();
+            }
             map.addEventListener('mapviewchangeend', get_flight);
             setInterval(get_flight, 15000);
+            setInterval(refresh_cloud_overlay, 1800000);
         </script>
     </div>
 </body>
