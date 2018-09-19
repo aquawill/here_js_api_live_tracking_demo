@@ -53,6 +53,7 @@
         <input id="geocoder_box" type="text" style="font-size: 16px;" placeholder="Search city" maxlength="50" size="40"> </div>
     <div id="text_box" style=" position: absolute; top: 60px; z-index: 1000; left: 20px; "> </div>
     <div style=" position: absolute; top: 95%; z-index: 1000; right: 10px; font-size: 8px; ">Icons made by <a href="https://www.flaticon.com/authors/pixel-buddha" title="Pixel Buddha">Pixel Buddha</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC 3.0 BY</a></div>
+    <div id="bt" style=" position: absolute; top: 20px; z-index: 1000; right: 20px; "> </div>
     <div id="map">
         <script type="text/javascript" charset="UTF-8">
             document.getElementById('text_box').innerHTML = '';
@@ -190,6 +191,7 @@
             var selected_flight_data;
 
             function select_flight(evt) {
+                document.getElementById('bt').innerHTML = '<button type="button" onclick="quit_tracking()">Quit Tracking</button>';
                 map.removeEventListener('mapviewchangeend', get_flight);
                 behavior.disable();
                 ui.getControl('zoom').setVisibility(false);
@@ -202,6 +204,17 @@
                 track_flight(data);
             }
             var line = new H.geo.LineString();
+
+            function quit_tracking() {
+                document.getElementById('bt').innerHTML = '';
+                selectedTrackGroup.removeAll();
+                line = new H.geo.LineString();
+                selected_icao64 = null;
+                selected_flight_data = null;
+                map.addEventListener('mapviewchangeend', get_flight);
+                behavior.enable();
+                ui.getControl('zoom').setVisibility(true);
+            }
 
             function track_flight(data) {
                 selectedTrackGroup.removeAll();
@@ -236,15 +249,6 @@
                             , width: 3
                             , length: 3
                         }
-                    });
-                    flightTrack.addEventListener('tap', function () {
-                        selectedTrackGroup.removeAll();
-                        line = new H.geo.LineString();
-                        selected_icao64 = null;
-                        selected_flight_data = null;
-                        map.addEventListener('mapviewchangeend', get_flight);
-                        behavior.enable();
-                        ui.getControl('zoom').setVisibility(true);
                     });
                     selectedTrackGroup.addObject(flightTrack);
                     if (ui.getBubbles().length > 0) {
