@@ -340,7 +340,7 @@
                 var epoch = Math.round(new Date().getTime() / 1000.0);
                 var weather_tile_provider = new H.map.provider.ImageTileProvider({
                     getURL: function (column, row, zoom) {
-                        return 'https://tile.openweathermap.org/map/clouds_new/' + zoom + '/' + column + '/' + row + '?appid=9de243494c0b295cca9337e1e96b00e2&token=' + epoch
+                        return 'https://c.sat.owm.io/vane/2.0/weather/CL/' + zoom + '/' + column + '/' + row + '?opacity=0.9&fill_bound=false&appid=9de243494c0b295cca9337e1e96b00e2&palette=0:000000;20:000000;60:999999;100:FFFFFF&token=' + epoch
                     }
                     , tileSize: 256
                 });
@@ -361,7 +361,18 @@
                 cloud_overlay_off();
                 cloud_overlay_on();
             }
-            map.addEventListener('mapviewchangeend', get_flight);
+            map.addEventListener('mapviewchangeend', function () {
+                if (cloud_is_on) {
+                    cloud_overlay_off();
+                    weather_overlay = null;
+                    cloud_overlay_on();
+                }
+                else {
+                    cloud_overlay_off();
+                    weather_overlay = null;
+                }
+                get_flight();
+            });
             setInterval(get_flight, 15000);
             setInterval(refresh_cloud_overlay, 900000);
             if (cloud_is_on) {
